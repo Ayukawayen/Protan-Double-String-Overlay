@@ -1,0 +1,901 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="claude:viewport-fit-sides" content="cover">
+<title>雙字串疊色圖</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=Noto+Sans+TC:wght@400;500;700;900&family=Noto+Serif+TC:wght@400;500;700;900&display=swap">
+<style>
+:root {
+  color-scheme: light;
+  --bg: #f4f6f9;
+  --surface: #ffffff;
+  --ink: #151a23;
+  --muted: #596273;
+  --line: #d6dbe3;
+  --accent: #2a4fd0;
+  --accent-ink: #ffffff;
+  --stage: #e8ebf1;
+  --ok: #17744a;
+  --ok-bg: #dff3e8;
+  --bad: #a8231b;
+  --bad-bg: #fbe4e1;
+  --font-body: "Noto Sans TC", "PingFang TC", "Microsoft JhengHei", system-ui, sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, Menlo, Consolas, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0e1218; --surface: #161b24; --ink: #e6e9ef; --muted: #98a1b1; --line: #2a313d;
+    --accent: #8ba3ff; --accent-ink: #0e1218; --stage: #0a0d12;
+    --ok: #62d19b; --ok-bg: #12301f; --bad: #ff948b; --bad-bg: #3a1714;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0e1218; --surface: #161b24; --ink: #e6e9ef; --muted: #98a1b1; --line: #2a313d;
+  --accent: #8ba3ff; --accent-ink: #0e1218; --stage: #0a0d12;
+  --ok: #62d19b; --ok-bg: #12301f; --bad: #ff948b; --bad-bg: #3a1714;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--ink);
+  font-family: var(--font-body);
+  font-size: 14px;
+  line-height: 1.55;
+  padding-block: 20px 40px;
+  padding-top: max(20px, env(safe-area-inset-top, 0px));
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+}
+img { max-width: 100%; }
+.wrap { max-width: 1080px; margin: 0 auto; display: flex; flex-direction: column; gap: 16px; }
+header h1 { font-size: 22px; line-height: 1.3; margin: 0 0 4px; font-weight: 700; text-wrap: balance; }
+header p { margin: 0; color: var(--muted); max-width: 62ch; }
+h2 { font-size: 12px; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); font-weight: 700; margin: 0 0 12px; }
+.mono, .hex, td.num, .q { font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
+
+/* 舞台 */
+.toolbar { display: flex; flex-wrap: wrap; gap: 8px 16px; align-items: center; justify-content: space-between; margin-bottom: 8px; }
+.seg { display: inline-flex; border: 1px solid var(--line); border-radius: 6px; overflow: hidden; background: var(--surface); }
+.seg button { border: 0; background: transparent; color: var(--ink); font: inherit; padding: 6px 12px; cursor: pointer; border-right: 1px solid var(--line); }
+.seg button:last-child { border-right: 0; }
+.seg button[aria-pressed="true"] { background: var(--accent); color: var(--accent-ink); }
+.sev { display: flex; align-items: center; gap: 8px; font-size: 12px; color: var(--muted); }
+.sev input[type="range"] { width: 150px; accent-color: var(--accent); }
+.sev input[type="number"] { width: 72px; padding: 4px 6px; }
+.stage { position: relative; background: var(--stage); border: 1px solid var(--line); border-radius: 8px; overflow: hidden; }
+.stage canvas { display: block; width: 100%; height: auto; max-width: 100%; }
+.cap { position: absolute; left: 10px; font-size: 12px; padding: 1px 8px; border-radius: 4px; background: var(--surface); color: var(--ink); border: 1px solid var(--line); }
+.legend { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 8px; margin-top: 10px; }
+.chip { display: flex; align-items: center; gap: 8px; min-width: 0; font-size: 12px; color: var(--muted); }
+.chip i { width: 22px; height: 22px; border-radius: 4px; border: 1px solid var(--line); flex: none; }
+.chip b { color: var(--ink); font-family: var(--font-mono); font-weight: 500; }
+
+/* 面板 */
+.grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 320px), 1fr)); gap: 16px; align-items: start; }
+.panel { background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 16px; min-width: 0; }
+.fld { display: flex; flex-direction: column; gap: 3px; min-width: 0; font-size: 12px; color: var(--muted); }
+input[type="text"], input[type="number"], select {
+  font: inherit; font-size: 14px; color: var(--ink); background: var(--bg);
+  border: 1px solid var(--line); border-radius: 6px; padding: 6px 8px; min-width: 0; width: 100%;
+}
+input:disabled, select:disabled { opacity: .5; }
+input:focus-visible, select:focus-visible, button:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+.strrow { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; padding-bottom: 14px; margin-bottom: 14px; border-bottom: 1px solid var(--line); }
+.strrow:last-of-type { border-bottom: 0; margin-bottom: 0; padding-bottom: 0; }
+.strrow .strhead { grid-column: 1 / -1; display: flex; flex-wrap: wrap; gap: 4px 10px; align-items: baseline; }
+.strrow .strhead span { color: var(--muted); font-size: 12px; }
+.strrow .wide { grid-column: 1 / -1; }
+.fcrow { display: flex; align-items: center; gap: 10px; }
+.fcrow input[type="text"] { flex: 1; }
+
+.btnrow { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 14px; }
+.btn { font: inherit; border: 1px solid var(--line); background: var(--surface); color: var(--ink); border-radius: 6px; padding: 7px 12px; cursor: pointer; }
+.btn.primary { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); font-weight: 500; }
+.btn:disabled { opacity: .55; cursor: default; }
+.status { min-height: 1.5em; font-size: 12px; color: var(--muted); margin: 0 0 12px; }
+.group-title { font-size: 12px; color: var(--muted); margin: 10px 0 6px; }
+.crow { display: grid; grid-template-columns: minmax(0, 1fr) 44px 92px auto; gap: 8px; align-items: center; padding: 6px 0; }
+.crow .clabel { min-width: 0; display: flex; flex-direction: column; line-height: 1.3; }
+.crow .clabel small { color: var(--muted); font-size: 11px; }
+.crow input[type="color"] { width: 44px; height: 34px; padding: 2px; border: 1px solid var(--line); border-radius: 6px; background: var(--bg); cursor: pointer; }
+.crow .hex { text-transform: lowercase; }
+.crow .hex.invalid { border-color: var(--bad); }
+.lock { display: flex; align-items: center; gap: 4px; font-size: 12px; color: var(--muted); white-space: nowrap; }
+.cands { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 4px; }
+.cand { display: flex; align-items: center; gap: 8px; border: 1px solid var(--line); background: var(--bg); color: var(--ink); border-radius: 6px; padding: 5px 8px; cursor: pointer; font: inherit; font-size: 12px; }
+.cand[aria-pressed="true"] { border-color: var(--accent); outline: 1px solid var(--accent); }
+.cand .strip { display: inline-grid; grid-template-columns: repeat(4, 14px); }
+.cand .strip i { height: 22px; display: block; }
+.cand.fail .q { color: var(--bad); }
+
+/* 診斷 */
+.verdict { display: inline-block; padding: 2px 10px; border-radius: 99px; font-size: 12px; font-weight: 500; margin-bottom: 12px; }
+.pass { background: var(--ok-bg); color: var(--ok); }
+.fail { background: var(--bad-bg); color: var(--bad); }
+.scroll { overflow-x: auto; }
+table { border-collapse: collapse; width: 100%; font-size: 13px; }
+th, td { text-align: left; padding: 6px 10px 6px 0; border-bottom: 1px solid var(--line); white-space: nowrap; }
+th { color: var(--muted); font-weight: 500; font-size: 12px; }
+td.num, th.num { text-align: right; padding-right: 14px; }
+.pill { display: inline-block; min-width: 2.6em; text-align: center; padding: 0 8px; border-radius: 99px; font-size: 12px; }
+.diag { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 420px), 1fr)); gap: 16px; }
+@media (prefers-reduced-motion: no-preference) { .btn, .seg button, .cand { transition: background-color .12s, border-color .12s; } }
+
+/* 疊加圖層 */
+.orow { display: grid; grid-template-columns: 6.5em minmax(0, 1fr) 68px; gap: 8px; align-items: center; padding: 3px 0; font-size: 12px; color: var(--muted); }
+.orow input[type="range"] { width: 100%; min-width: 0; accent-color: var(--accent); }
+.orow input[type="number"] { padding: 4px 6px; }
+.swatch { height: 28px; border-radius: 6px; border: 1px solid var(--line); margin: 10px 0 4px; }
+
+fieldset { border: 0; padding: 0; margin: 0 0 14px; min-width: 0; }
+legend { padding: 0; font-weight: 700; margin-bottom: 8px; }
+.tgrid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.note { color: var(--muted); font-size: 12px; margin: 0; }
+</style>
+</head>
+<body>
+
+<div class="wrap">
+  <header>
+    <h1>雙字串疊色圖</h1>
+    <p>兩個字串疊在同一張圖上，用四個顏色上色。Protan 色覺者讀得出字串一，一般色覺者讀得出字串二。</p>
+  </header>
+
+  <section aria-label="預覽">
+    <div class="toolbar">
+      <div class="seg" role="group" aria-label="檢視方式">
+        <button type="button" data-view="normal" aria-pressed="true">一般色覺</button>
+        <button type="button" data-view="protan" aria-pressed="false">Protan 模擬</button>
+        <button type="button" data-view="both" aria-pressed="false">上下對照</button>
+        <button type="button" data-view="index" aria-pressed="false">索引圖</button>
+      </div>
+      <div class="sev">
+        <label for="sev">Protan 嚴重度</label>
+        <input type="range" id="sev" min="0" max="1" step="0.05" value="1">
+        <input type="number" id="sev-n" min="0" max="1" step="0.05" value="1" aria-label="Protan 嚴重度數值">
+      </div>
+    </div>
+    <div class="stage">
+      <canvas id="stage" width="960" height="420" aria-label="疊色結果"></canvas>
+      <span class="cap" id="cap1" hidden>一般色覺</span>
+      <span class="cap" id="cap2" hidden>Protan 模擬</span>
+    </div>
+    <div class="legend" id="legend"></div>
+  </section>
+
+  <div class="grid">
+    <section class="panel" aria-label="字串設定">
+      <h2>字串與字型</h2>
+      <div class="strrow">
+        <div class="strhead"><b>字串一</b><span>Protan 讀得出</span></div>
+        <label class="fld wide"><span>文字</span><input id="s1-text" type="text" value="辨色能力" autocomplete="off"></label>
+        <label class="fld wide"><span>字型（常見字型；實際效果取決於本機是否安裝）</span><select id="s1-font"></select></label>
+        <div class="fld wide"><span>自訂 CSS font-family</span>
+          <div class="fcrow">
+            <label class="lock"><input type="checkbox" id="s1-usecustom">使用自訂</label>
+            <input id="s1-fontcustom" type="text" value="&quot;MS Gothic&quot;, serif" autocomplete="off" spellcheck="false" aria-label="字串一自訂字型" disabled>
+          </div>
+        </div>
+        <label class="fld"><span>字重</span>
+          <select id="s1-weight"><option>400</option><option>500</option><option>700</option><option selected>900</option></select></label>
+        <label class="fld"><span>大小（px）</span><input id="s1-size" type="number" min="20" max="700" step="5" value="230"></label>
+      </div>
+      <div class="strrow">
+        <div class="strhead"><b>字串二</b><span>一般色覺讀得出</span></div>
+        <label class="fld wide"><span>文字</span><input id="s2-text" type="text" value="普通文字" autocomplete="off"></label>
+        <label class="fld wide"><span>字型</span><select id="s2-font"></select></label>
+        <div class="fld wide"><span>自訂 CSS font-family</span>
+          <div class="fcrow">
+            <label class="lock"><input type="checkbox" id="s2-usecustom">使用自訂</label>
+            <input id="s2-fontcustom" type="text" value="&quot;MS Gothic&quot;, serif" autocomplete="off" spellcheck="false" aria-label="字串二自訂字型" disabled>
+          </div>
+        </div>
+        <label class="fld"><span>字重</span>
+          <select id="s2-weight"><option>400</option><option>500</option><option>700</option><option selected>900</option></select></label>
+        <label class="fld"><span>大小（px）</span><input id="s2-size" type="number" min="20" max="700" step="5" value="230"></label>
+      </div>
+    </section>
+
+    <section class="panel" aria-label="顏色">
+      <h2>四個顏色</h2>
+      <div class="btnrow">
+        <button type="button" class="btn primary" id="search">搜尋色彩組合</button>
+        <button type="button" class="btn" id="swap" title="a1 與 b2 互換，a2 與 b1 互換">對角交換 a1↔b2、a2↔b1</button>
+      </div>
+      <p class="status" id="status" role="status" aria-live="polite"></p>
+      <div id="colors"></div>
+      <div class="group-title" id="cand-title" hidden>候選組合（點選套用）</div>
+      <div class="cands" id="cands"></div>
+    </section>
+
+    <section class="panel" aria-label="門檻">
+      <h2>搜尋門檻</h2>
+      <fieldset>
+        <legend>Protan 視角（模擬後）</legend>
+        <div class="tgrid" id="t-protan"></div>
+      </fieldset>
+      <fieldset>
+        <legend>一般色覺</legend>
+        <div class="tgrid" id="t-normal"></div>
+      </fieldset>
+      <p class="note">另外固定要求：Protan 的組內色差與明度差各自小於組間；一般色覺的 a1–b1、a2–b2 各自小於 a1–a2、b1–b2。</p>
+      <p class="note" style="margin-top: 6px">嚴重度越低，Protan 與一般色覺的差異越小，預設門檻可能無法滿足，需要放寬。</p>
+      <div class="btnrow" style="margin: 12px 0 0"><button type="button" class="btn" id="reset-t">還原預設門檻</button></div>
+    </section>
+  </div>
+
+  <section class="panel" aria-label="診斷">
+    <h2>目前顏色的量測</h2>
+    <span class="verdict" id="verdict"></span>
+    <div class="diag">
+      <div class="scroll"><table id="pairs"></table></div>
+      <div class="scroll"><table id="checks"></table></div>
+    </div>
+    <p class="note" style="margin-top: 12px">Protan 模擬採 Machado 等人（2009）矩陣，目前嚴重度 <b id="sevnote"></b>（1.0 為 protanopia，0.1 級距之間線性內插），在線性 RGB 中計算。ΔE 為 CIELAB（D65）的歐氏距離，ΔL 為 L* 差的絕對值。</p>
+  </section>
+
+  <section class="panel" aria-label="疊加圖層">
+    <h2>疊加圖層（在文字上方）</h2>
+    <div class="btnrow" style="margin-bottom: 8px">
+      <label class="lock"><input type="checkbox" id="ov-on" checked>啟用</label>
+      <label class="lock"><input type="checkbox" id="ov-follow" checked>主色跟隨 a1</label>
+    </div>
+    <div id="ov-rows"></div>
+    <div class="swatch" id="ov-swatch" aria-hidden="true"></div>
+    <p class="note mono" id="ov-info" style="margin-bottom: 12px"></p>
+    <label class="fld"><span>方格邊長 L（像素，奇數、至少 5）</span><input id="ov-L" type="number" min="5" step="2" value="9"></label>
+    <p class="note" style="margin-top: 10px">每個 L×L 方格中，連接四邊中點的內正方形內部（連線本身不計）會以主色加上不透明度著色，其餘像素透明。例如 L = 5 時只有十字形的 5 格被著色。疊加層純屬視覺效果：搜尋與下方診斷仍以 a1、a2、b1、b2 四色本身計算，不含疊加層混色。</p>
+  </section>
+
+</div>
+
+
+<script>
+(function () {
+'use strict';
+
+/*CORE_START*/
+/* Machado et al. (2009) protanomaly 矩陣，嚴重度 0.0 ~ 1.0，每 0.1 一級 */
+const SEV_TABLE = [
+  [[1, 0, 0], [0, 1, 0], [0, 0, 1]],
+  [[0.856167, 0.182038, -0.038205], [0.029342, 0.955115, 0.015544], [-0.002880, -0.001563, 1.004443]],
+  [[0.734766, 0.334872, -0.069637], [0.051840, 0.919198, 0.028963], [-0.004928, -0.004209, 1.009137]],
+  [[0.630323, 0.465641, -0.095964], [0.069181, 0.890046, 0.040773], [-0.006308, -0.007724, 1.014032]],
+  [[0.539009, 0.579343, -0.118352], [0.082546, 0.866121, 0.051332], [-0.007136, -0.011959, 1.019095]],
+  [[0.458064, 0.679578, -0.137642], [0.092785, 0.846313, 0.060902], [-0.007494, -0.016807, 1.024301]],
+  [[0.385450, 0.769005, -0.154455], [0.100526, 0.829802, 0.069673], [-0.007442, -0.022190, 1.029632]],
+  [[0.319627, 0.849633, -0.169261], [0.106241, 0.815969, 0.077790], [-0.007025, -0.028051, 1.035076]],
+  [[0.259411, 0.923008, -0.182420], [0.110296, 0.804340, 0.085364], [-0.006276, -0.034346, 1.040622]],
+  [[0.203876, 0.987720, -0.191596], [0.112975, 0.794542, 0.092483], [-0.005222, -0.041043, 1.046265]],
+  [[0.152286, 1.052583, -0.204868], [0.114503, 0.786281, 0.099216], [-0.003882, -0.048116, 1.051998]]
+];
+function protanMatrix(s) {
+  s = Math.min(1, Math.max(0, +s || 0)) * 10;
+  const i = Math.min(9, Math.floor(s)), t = s - i;
+  const A = SEV_TABLE[i], B = SEV_TABLE[i + 1];
+  return A.map((row, r) => row.map((v, c) => v + (B[r][c] - v) * t));
+}
+let M_PROTAN = protanMatrix(1);
+function setSeverity(s) { M_PROTAN = protanMatrix(s); }
+
+const DEFAULT_T = { pwE: 5, pwL: 4, pbE: 12, pbL: 6, ncE: 16, ncL: 6, nfE: 50, nfL: 10 };
+
+const s2l = v => { v /= 255; return v <= 0.04045 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4); };
+const l2s = v => { v = v < 0 ? 0 : v > 1 ? 1 : v; return 255 * (v <= 0.0031308 ? 12.92 * v : 1.055 * Math.pow(v, 1 / 2.4) - 0.055); };
+const clamp255 = v => v < 0 ? 0 : v > 255 ? 255 : v;
+
+function labFromLin(r, g, b) {
+  const X = 0.4124564 * r + 0.3575761 * g + 0.1804375 * b;
+  const Y = 0.2126729 * r + 0.7151522 * g + 0.0721750 * b;
+  const Z = 0.0193339 * r + 0.1191920 * g + 0.9503041 * b;
+  const f = t => t > 216 / 24389 ? Math.cbrt(t) : (24389 / 27 * t + 16) / 116;
+  const fx = f(X / 0.95047), fy = f(Y), fz = f(Z / 1.08883);
+  return [116 * fy - 16, 500 * (fx - fy), 200 * (fy - fz)];
+}
+function analyze(c) {
+  const r = s2l(c[0]), g = s2l(c[1]), b = s2l(c[2]);
+  const n = labFromLin(r, g, b);
+  const q = M_PROTAN;
+  const pr = Math.min(1, Math.max(0, q[0][0] * r + q[0][1] * g + q[0][2] * b));
+  const pg = Math.min(1, Math.max(0, q[1][0] * r + q[1][1] * g + q[1][2] * b));
+  const pb = Math.min(1, Math.max(0, q[2][0] * r + q[2][1] * g + q[2][2] * b));
+  return { c: c, n: n, p: labFromLin(pr, pg, pb), sim: [l2s(pr), l2s(pg), l2s(pb)] };
+}
+const dE = (u, v) => Math.hypot(u[0] - v[0], u[1] - v[1], u[2] - v[2]);
+const dL = (u, v) => Math.abs(u[0] - v[0]);
+
+/* I[0]=a1, I[1]=a2, I[2]=b1, I[3]=b2 */
+function metrics(I) {
+  const pe = (i, j) => dE(I[i].p, I[j].p), pl = (i, j) => dL(I[i].p, I[j].p);
+  const ne = (i, j) => dE(I[i].n, I[j].n), nl = (i, j) => dL(I[i].n, I[j].n);
+  return {
+    pwE: Math.max(pe(0, 1), pe(2, 3)),
+    pwL: Math.max(pl(0, 1), pl(2, 3)),
+    pbE: Math.min(pe(0, 2), pe(0, 3), pe(1, 2), pe(1, 3)),
+    pbL: Math.min(pl(0, 2), pl(0, 3), pl(1, 2), pl(1, 3)),
+    ncE: Math.max(ne(0, 2), ne(1, 3)),
+    ncL: Math.max(nl(0, 2), nl(1, 3)),
+    nfE: Math.min(ne(0, 1), ne(2, 3)),
+    nfL: Math.min(nl(0, 1), nl(2, 3))
+  };
+}
+function evaluate(M, T) {
+  const rows = [];
+  const abs = (id, val, thr, op) => {
+    const pass = op === '<=' ? val <= thr : val >= thr;
+    const viol = pass ? 0 : Math.abs(val - thr) / (thr + 2);
+    rows.push({ id: id, val: val, thr: thr, op: op, pass: pass, viol: viol });
+  };
+  const rel = (id, val, thr) => {
+    const pass = val < thr;
+    rows.push({ id: id, val: val, thr: thr, op: '<', pass: pass, viol: pass ? 0 : (val - thr + 0.5) / (thr + 2) });
+  };
+  abs('pwE', M.pwE, T.pwE, '<=');
+  abs('pwL', M.pwL, T.pwL, '<=');
+  abs('pbE', M.pbE, T.pbE, '>=');
+  abs('pbL', M.pbL, T.pbL, '>=');
+  abs('ncE', M.ncE, T.ncE, '<=');
+  abs('ncL', M.ncL, T.ncL, '<=');
+  abs('nfE', M.nfE, T.nfE, '>=');
+  abs('nfL', M.nfL, T.nfL, '>=');
+  rel('pRelE', M.pwE, M.pbE);
+  rel('pRelL', M.pwL, M.pbL);
+  rel('nRelE', M.ncE, M.nfE);
+  rel('nRelL', M.ncL, M.nfL);
+  let V = 0, fails = 0;
+  rows.forEach(r => { V += r.viol; if (!r.pass) fails++; });
+  return { rows: rows, V: V, fails: fails };
+}
+function quality(M) {
+  return (M.pbE - M.pwE) + 0.5 * (M.nfE - M.ncE) + 0.3 * (M.pbL - M.pwL) + 0.3 * (M.nfL - M.ncL);
+}
+function gauss() {
+  const u = Math.random() || 1e-9, v = Math.random();
+  return Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * v);
+}
+const randColor = () => [Math.round(Math.random() * 255), Math.round(Math.random() * 255), Math.round(Math.random() * 255)];
+const objective = (ev, M) => ev.V > 0 ? 1000 * ev.V : -quality(M);
+
+/* fixed: 長度 4，鎖定的位置放 [r,g,b]，其餘為 null */
+function search(T, fixed, opts) {
+  opts = opts || {};
+  const restarts = opts.restarts || 100, iters = opts.iters || 600;
+  const free = [0, 1, 2, 3].filter(i => !fixed[i]);
+  const out = [];
+  if (!free.length) return out;
+  for (let r = 0; r < restarts; r++) {
+    const C = [0, 1, 2, 3].map(i => fixed[i] ? fixed[i].slice() : randColor());
+    const I = C.map(analyze);
+    let M = metrics(I), ev = evaluate(M, T), f = objective(ev, M);
+    let sigma = 70;
+    for (let it = 0; it < iters; it++) {
+      const i = free[(Math.random() * free.length) | 0];
+      const old = C[i], oldI = I[i];
+      const nc = Math.random() < 0.04 ? randColor()
+        : old.map(v => Math.round(clamp255(v + gauss() * sigma)));
+      C[i] = nc; I[i] = analyze(nc);
+      const M2 = metrics(I), ev2 = evaluate(M2, T), f2 = objective(ev2, M2);
+      if (f2 <= f) { f = f2; M = M2; ev = ev2; }
+      else { C[i] = old; I[i] = oldI; }
+      sigma = Math.max(1.5, sigma * 0.992);
+    }
+    out.push({ C: C.map(c => c.slice()), I: I.slice(), M: M, ev: ev, f: f, Q: quality(M) });
+  }
+  out.sort((a, b) => a.f - b.f);
+  return out;
+}
+function pickDiverse(results, max, minGap) {
+  const picked = [];
+  for (const r of results) {
+    const dup = picked.some(p => Math.max.apply(null, [0, 1, 2, 3].map(i => dE(p.I[i].n, r.I[i].n))) < minGap);
+    if (!dup) picked.push(r);
+    if (picked.length >= max) break;
+  }
+  return picked;
+}
+const hex2 = v => ('0' + Math.round(v).toString(16)).slice(-2);
+const toHex = c => '#' + hex2(c[0]) + hex2(c[1]) + hex2(c[2]);
+function parseHex(s) {
+  s = String(s).trim().replace(/^#/, '');
+  if (/^[0-9a-fA-F]{3}$/.test(s)) s = s.split('').map(ch => ch + ch).join('');
+  if (!/^[0-9a-fA-F]{6}$/.test(s)) return null;
+  return [parseInt(s.slice(0, 2), 16), parseInt(s.slice(2, 4), 16), parseInt(s.slice(4, 6), 16)];
+}
+
+/* HSV：h 為度數 0~360，s、v 為 0~1；rgb 為 0~255 */
+function hsv2rgb(h, s, v) {
+  h = ((h % 360) + 360) % 360;
+  const c = v * s, x = c * (1 - Math.abs((h / 60) % 2 - 1)), m = v - c;
+  let r, g, b;
+  if (h < 60) { r = c; g = x; b = 0; }
+  else if (h < 120) { r = x; g = c; b = 0; }
+  else if (h < 180) { r = 0; g = c; b = x; }
+  else if (h < 240) { r = 0; g = x; b = c; }
+  else if (h < 300) { r = x; g = 0; b = c; }
+  else { r = c; g = 0; b = x; }
+  return [(r + m) * 255, (g + m) * 255, (b + m) * 255];
+}
+function rgb2hsv(c) {
+  const r = c[0] / 255, g = c[1] / 255, b = c[2] / 255;
+  const mx = Math.max(r, g, b), mn = Math.min(r, g, b), d = mx - mn;
+  let h = 0;
+  if (d > 0) {
+    if (mx === r) h = 60 * (((g - b) / d) % 6);
+    else if (mx === g) h = 60 * ((b - r) / d + 2);
+    else h = 60 * ((r - g) / d + 4);
+  }
+  if (h < 0) h += 360;
+  return [h, mx === 0 ? 0 : d / mx, mx];
+}
+
+/* 疊加遮罩：以 L×L 方格平鋪；方格中心像素為 (r, r)，r = (L-1)/2。
+   四邊中點的像素為 (r,0)、(L-1,r)、(r,L-1)、(0,r)，其連線為菱形 |dx|+|dy| = r；
+   只有嚴格在內部（|dx|+|dy| < r）的像素算入，連線本身不計。 */
+function overlayMask(W, H, L) {
+  const out = new Uint8Array(W * H), r = (L - 1) / 2;
+  for (let y = 0; y < H; y++) {
+    const dy = Math.abs(y % L - r);
+    for (let x = 0; x < W; x++) {
+      if (Math.abs(x % L - r) + dy < r) out[y * W + x] = 1;
+    }
+  }
+  return out;
+}
+function normL(v) {
+  v = Math.round(+v);
+  if (!isFinite(v)) return 9;
+  if (v < 5) v = 5;
+  if (v % 2 === 0) v += 1;
+  return v;
+}
+/*CORE_END*/
+
+/* ---------- UI ---------- */
+const $ = id => document.getElementById(id);
+const W = 960, H = 420, G = 24;
+const IDX = ['11', '10', '01', '00'];
+const NAMES = ['a1', 'a2', 'b1', 'b2'];
+const DESC = ['字串一文字 · 字串二文字', '字串一文字 · 字串二空白', '字串一空白 · 字串二文字', '字串一空白 · 字串二空白'];
+const INDEX_VIEW = [[236, 238, 242], [240, 180, 50], [74, 144, 226], [40, 44, 60]]; // 依 00,01,10,11
+
+/* 常見字型：[顯示名稱, CSS font-family] */
+const FONTS = [
+  ['思源黑體 Noto Sans TC', '"Noto Sans TC", sans-serif'],
+  ['思源宋體 Noto Serif TC', '"Noto Serif TC", serif'],
+  ['微軟正黑體 Microsoft JhengHei', '"Microsoft JhengHei", sans-serif'],
+  ['Arial', 'Arial, Helvetica, sans-serif'],
+  ['Verdana', 'Verdana, sans-serif'],
+  ['Georgia', 'Georgia, serif'],
+  ['Times New Roman', '"Times New Roman", Times, serif'],
+  ['Consolas', 'Consolas, monospace'],
+  ['Courier New', '"Courier New", Courier, monospace'],
+  ['Impact', 'Impact, sans-serif'],
+  ['新細明體 PMingLiU', '"PMingLiU", serif'],
+  ['標楷體 DFKai-SB / BiauKai', '"DFKai-SB", "BiauKai", "標楷體", serif'],
+  ['系統無襯線 sans-serif', 'sans-serif'],
+  ['系統襯線 serif', 'serif'],
+  ['等寬 monospace', 'monospace'],
+  ['手寫 cursive', 'cursive'],
+];
+const OV_ROWS = [['h', 'H 色相（°）', 360], ['s', 'S 飽和度（%）', 100], ['v', 'V 明度（%）', 100], ['a', 'A 不透明度（%）', 100]];
+
+const state = {
+  colors: ['#fcba3a', '#15c524', '#fe9754', '#03ac50'],
+  locks: [false, false, false, false],
+  view: 'normal',
+  cands: [],
+  sev: 1,
+  T: Object.assign({}, DEFAULT_T),
+  ov: { on: true, follow: true, h: 0, s: 0, v: 0, a: 80, L: 9 } // s、v、a 為百分比
+};
+
+const T_FIELDS = {
+  protan: [
+    ['pwE', '組內色差上限 ΔE'], ['pwL', '組內明度差上限 ΔL'],
+    ['pbE', '組間色差下限 ΔE'], ['pbL', '組間明度差下限 ΔL']
+  ],
+  normal: [
+    ['ncE', 'a1–b1、a2–b2 色差上限'], ['ncL', 'a1–b1、a2–b2 明度差上限'],
+    ['nfE', 'a1–a2、b1–b2 色差下限'], ['nfL', 'a1–a2、b1–b2 明度差下限']
+  ]
+};
+const CHECK_LABEL = {
+  pwE: 'Protan 組內色差', pwL: 'Protan 組內明度差', pbE: 'Protan 組間色差', pbL: 'Protan 組間明度差',
+  ncE: '一般 a1–b1、a2–b2 色差', ncL: '一般 a1–b1、a2–b2 明度差',
+  nfE: '一般 a1–a2、b1–b2 色差', nfL: '一般 a1–a2、b1–b2 明度差',
+  pRelE: 'Protan 組內色差 < 組間', pRelL: 'Protan 組內明度差 < 組間',
+  nRelE: '一般 近色差 < 遠', nRelL: '一般 近明度差 < 遠'
+};
+
+/* 建立顏色列、門檻欄位、字型選單、疊加列 */
+(function build() {
+  let html = '';
+  [0, 1, 2, 3].forEach(i => {
+    if (i === 0) html += '<div class="group-title">A 組：組成字串一的文字</div>';
+    if (i === 2) html += '<div class="group-title">B 組：組成字串一的空白</div>';
+    html += '<div class="crow">' +
+      '<div class="clabel"><span><b class="mono">' + NAMES[i] + '</b> <span class="mono">' + IDX[i] + '</span></span><small>' + DESC[i] + '</small></div>' +
+      '<input type="color" id="c' + i + '-pick" aria-label="' + NAMES[i] + ' 色票">' +
+      '<input type="text" class="hex" id="c' + i + '-hex" maxlength="7" spellcheck="false" autocomplete="off" aria-label="' + NAMES[i] + ' 色碼">' +
+      '<label class="lock"><input type="checkbox" id="c' + i + '-lock">鎖定</label></div>';
+  });
+  $('colors').innerHTML = html;
+  ['protan', 'normal'].forEach(g => {
+    $('t-' + g).innerHTML = T_FIELDS[g].map(f =>
+      '<label class="fld"><span>' + f[1] + '</span><input type="number" id="t-' + f[0] + '" min="0" max="200" step="1"></label>').join('');
+  });
+  [1, 2].forEach(n => {
+    const sel = $('s' + n + '-font');
+    FONTS.forEach(f => {
+      const o = document.createElement('option');
+      o.value = f[1]; o.textContent = f[0];
+      sel.appendChild(o);
+    });
+  });
+  $('ov-rows').innerHTML = OV_ROWS.map(r =>
+    '<div class="orow"><label for="ov-' + r[0] + '">' + r[1] + '</label>' +
+    '<input type="range" id="ov-' + r[0] + '" min="0" max="' + r[2] + '" step="1">' +
+    '<input type="number" id="ov-' + r[0] + '-n" min="0" max="' + r[2] + '" step="1" aria-label="' + r[1] + ' 數值"></div>').join('');
+})();
+
+function writeColorInputs() {
+  state.colors.forEach((h, i) => {
+    $('c' + i + '-pick').value = h;
+    $('c' + i + '-hex').value = h;
+    $('c' + i + '-hex').classList.remove('invalid');
+    $('c' + i + '-lock').checked = state.locks[i];
+  });
+}
+function writeThresholds() {
+  Object.keys(state.T).forEach(k => { $('t-' + k).value = state.T[k]; });
+}
+const safeColors = () => state.colors.map(h => parseHex(h) || [128, 128, 128]);
+
+/* 字串設定 */
+function syncFontControls(n) {
+  const use = $('s' + n + '-usecustom').checked;
+  $('s' + n + '-fontcustom').disabled = !use;
+  $('s' + n + '-font').disabled = use;
+}
+
+/* 疊加圖層 */
+const overlayRGB = () => hsv2rgb(state.ov.h, state.ov.s / 100, state.ov.v / 100).map(v => Math.round(clamp255(v)));
+function setIfIdle(el, val) { if (document.activeElement !== el) el.value = val; }
+function syncOverlay() {
+  const o = state.ov;
+  if (o.follow) {
+    const hsv = rgb2hsv(safeColors()[0]);
+    o.h = hsv[0]; o.s = hsv[1] * 100; o.v = hsv[2] * 100;
+  }
+  OV_ROWS.forEach(r => {
+    const k = r[0], dis = o.follow && k !== 'a';
+    setIfIdle($('ov-' + k), o[k]);
+    setIfIdle($('ov-' + k + '-n'), Math.round(o[k]));
+    $('ov-' + k).disabled = dis;
+    $('ov-' + k + '-n').disabled = dis;
+  });
+  $('ov-on').checked = o.on;
+  $('ov-follow').checked = o.follow;
+  const c = overlayRGB(), a = (o.a / 100).toFixed(2);
+  const col = 'rgba(' + c.join(',') + ',' + a + ')';
+  const sw = $('ov-swatch');
+  sw.style.backgroundImage = 'linear-gradient(' + col + ',' + col + '), conic-gradient(#c9ced8 25%, #ffffff 0 50%, #c9ced8 0 75%, #ffffff 0)';
+  sw.style.backgroundSize = 'auto, 14px 14px';
+  $('ov-info').textContent = toHex(c) + ' · A ' + Math.round(o.a) + '% · L ' + o.L;
+}
+let ovMaskCache = null;
+function getOvMask() {
+  if (!ovMaskCache || ovMaskCache.L !== state.ov.L) ovMaskCache = { L: state.ov.L, data: overlayMask(W, H, state.ov.L) };
+  return ovMaskCache.data;
+}
+
+/* 遮罩 */
+const maskCache = {};
+function readStr(n) {
+  const use = $('s' + n + '-usecustom').checked;
+  const custom = $('s' + n + '-fontcustom').value.trim();
+  return {
+    text: $('s' + n + '-text').value,
+    font: use ? (custom || 'sans-serif') : $('s' + n + '-font').value,
+    weight: $('s' + n + '-weight').value,
+    size: Math.max(10, parseFloat($('s' + n + '-size').value) || 100)
+  };
+}
+function getMask(n) {
+  const cfg = readStr(n), key = JSON.stringify(cfg);
+  if (maskCache[n] && maskCache[n].key === key) return maskCache[n].data;
+  const out = new Uint8Array(W * H);
+  if (cfg.text.length) {
+    const c = document.createElement('canvas');
+    c.width = W; c.height = H;
+    const x = c.getContext('2d', { willReadFrequently: true });
+    x.font = cfg.weight + ' ' + cfg.size + 'px ' + cfg.font;
+    x.textAlign = 'left'; x.textBaseline = 'alphabetic'; x.fillStyle = '#000';
+    const m = x.measureText(cfg.text);
+    const left = -m.actualBoundingBoxLeft, right = m.actualBoundingBoxRight;
+    const asc = m.actualBoundingBoxAscent, desc = m.actualBoundingBoxDescent;
+    x.fillText(cfg.text, W / 2 - (left + right) / 2, H / 2 + (asc - desc) / 2);
+    const d = x.getImageData(0, 0, W, H).data;
+    for (let i = 0; i < W * H; i++) out[i] = d[i * 4 + 3] >= 128 ? 1 : 0;
+  }
+  maskCache[n] = { key: key, data: out };
+  return out;
+}
+
+/* 繪製 */
+const ctx = $('stage').getContext('2d');
+const viewOf = (kind, rgb) => kind === 'protan' ? analyze(rgb).sim.map(Math.round) : rgb;
+const blend = (base, ov, a) => base.map((v, i) => Math.round(v * (1 - a) + ov[i] * a));
+/* 依索引 00,01,10,11 排列；withOv 為 true 時，先與疊加色（sRGB 空間 alpha 混合）再轉成該視角 */
+function table(kind, withOv) {
+  if (kind === 'index') return INDEX_VIEW;
+  let C = safeColors();
+  if (withOv) {
+    const o = overlayRGB(), a = state.ov.a / 100;
+    C = C.map(c => blend(c, o, a));
+  }
+  const pick = C.map(c => viewOf(kind, c));
+  return [pick[3], pick[2], pick[1], pick[0]];
+}
+function paint(kind, y0, m1, m2) {
+  const useOv = state.ov.on && kind !== 'index';
+  const t0 = table(kind, false), t1 = useOv ? table(kind, true) : t0;
+  const om = useOv ? getOvMask() : null;
+  const img = ctx.createImageData(W, H), d = img.data;
+  for (let i = 0, j = 0; i < W * H; i++, j += 4) {
+    const c = (om && om[i] ? t1 : t0)[(m1[i] << 1) | m2[i]];
+    d[j] = c[0]; d[j + 1] = c[1]; d[j + 2] = c[2]; d[j + 3] = 255;
+  }
+  ctx.putImageData(img, 0, y0);
+}
+function render() {
+  syncOverlay();
+  const m1 = getMask(1), m2 = getMask(2);
+  const panels = state.view === 'both' ? ['normal', 'protan'] : [state.view];
+  const hh = panels.length * H + (panels.length - 1) * G;
+  const cv = $('stage');
+  if (cv.height !== hh) cv.height = hh;
+  ctx.clearRect(0, 0, W, hh);
+  panels.forEach((p, k) => paint(p, k * (H + G), m1, m2));
+  const both = state.view === 'both';
+  $('cap1').hidden = !both; $('cap2').hidden = !both;
+  if (both) { $('cap1').style.top = '10px'; $('cap2').style.top = 'calc(' + ((H + G) / hh * 100) + '% + 10px)'; }
+  renderLegend(panels[0]);
+}
+function renderLegend(kind) {
+  const tbl = table(kind, false); // 00,01,10,11
+  const order = [3, 2, 1, 0]; // a1(11), a2(10), b1(01), b2(00) 對應 tbl 索引
+  let html = [0, 1, 2, 3].map(i => {
+    const c = tbl[order[i]];
+    return '<div class="chip"><i style="background:rgb(' + c.map(Math.round).join(',') + ')"></i><span><b>' + NAMES[i] + ' · ' + IDX[i] + '</b><br>' + DESC[i] + '</span></div>';
+  }).join('');
+  if (state.ov.on && kind !== 'index') {
+    const c = viewOf(kind, overlayRGB());
+    html += '<div class="chip"><i style="background:rgb(' + c.join(',') + ')"></i><span><b>疊加層 · A ' + Math.round(state.ov.a) + '%</b><br>方格 L = ' + state.ov.L + '</span></div>';
+  }
+  $('legend').innerHTML = html;
+}
+
+/* 診斷 */
+const f1 = v => v.toFixed(1);
+function renderDiagnostics() {
+  $('sevnote').textContent = state.sev.toFixed(2);
+  const C = state.colors.map(parseHex);
+  if (C.some(c => !c)) { $('verdict').textContent = '色碼格式錯誤'; $('verdict').className = 'verdict fail'; return; }
+  const I = C.map(analyze), M = metrics(I), ev = evaluate(M, state.T);
+  const pairs = [
+    [0, 1, '組內', '遠'], [2, 3, '組內', '遠'], [0, 2, '組間', '近'],
+    [1, 3, '組間', '近'], [0, 3, '組間', '—'], [1, 2, '組間', '—']
+  ];
+  $('pairs').innerHTML =
+    '<thead><tr><th>配對</th><th>Protan／一般</th><th class="num">Protan ΔE</th><th class="num">Protan ΔL</th><th class="num">一般 ΔE</th><th class="num">一般 ΔL</th></tr></thead><tbody>' +
+    pairs.map(p => '<tr><td class="mono">' + NAMES[p[0]] + '–' + NAMES[p[1]] + '</td><td>' + p[2] + '／' + p[3] + '</td>' +
+      '<td class="num">' + f1(dE(I[p[0]].p, I[p[1]].p)) + '</td><td class="num">' + f1(dL(I[p[0]].p, I[p[1]].p)) + '</td>' +
+      '<td class="num">' + f1(dE(I[p[0]].n, I[p[1]].n)) + '</td><td class="num">' + f1(dL(I[p[0]].n, I[p[1]].n)) + '</td></tr>').join('') + '</tbody>';
+  $('checks').innerHTML =
+    '<thead><tr><th>條件</th><th class="num">量測值</th><th></th><th class="num">門檻</th><th></th></tr></thead><tbody>' +
+    ev.rows.map(r => '<tr><td>' + CHECK_LABEL[r.id] + '</td><td class="num">' + f1(r.val) + '</td><td class="mono">' +
+      (r.op === '<=' ? '≤' : r.op === '>=' ? '≥' : '<') + '</td><td class="num">' + f1(r.thr) +
+      '</td><td><span class="pill ' + (r.pass ? 'pass' : 'fail') + '">' + (r.pass ? '通過' : '未過') + '</span></td></tr>').join('') + '</tbody>';
+  const v = $('verdict');
+  v.className = 'verdict ' + (ev.fails ? 'fail' : 'pass');
+  v.textContent = ev.fails ? ev.fails + ' 項條件未通過' : '全部條件通過';
+  markCandidates();
+}
+
+/* 候選 */
+function renderCandidates() {
+  const box = $('cands');
+  $('cand-title').hidden = !state.cands.length;
+  box.innerHTML = state.cands.map((r, k) => {
+    const hexes = r.C.map(toHex);
+    return '<button type="button" class="cand' + (r.ev.fails ? ' fail' : '') + '" data-k="' + k + '" aria-pressed="false">' +
+      '<span class="strip">' + hexes.map(h => '<i style="background:' + h + '"></i>').join('') + '</span>' +
+      '<span class="q">' + (r.ev.fails ? '未過 ' + r.ev.fails : 'Q ' + r.Q.toFixed(0)) + '</span></button>';
+  }).join('');
+  markCandidates();
+}
+function markCandidates() {
+  const cur = state.colors.join(',').toLowerCase();
+  document.querySelectorAll('.cand').forEach(b => {
+    const r = state.cands[+b.dataset.k];
+    b.setAttribute('aria-pressed', r && r.C.map(toHex).join(',') === cur ? 'true' : 'false');
+  });
+}
+
+/* 動作 */
+let raf = 0;
+function refresh() {
+  cancelAnimationFrame(raf);
+  raf = requestAnimationFrame(() => { render(); renderDiagnostics(); });
+}
+function applyColors(hexes) {
+  state.colors = hexes.slice();
+  writeColorInputs();
+  refresh();
+}
+function readT() {
+  const T = {};
+  Object.keys(DEFAULT_T).forEach(k => {
+    const v = parseFloat($('t-' + k).value);
+    T[k] = isFinite(v) ? Math.max(0, v) : DEFAULT_T[k];
+  });
+  return T;
+}
+function doSearch() {
+  state.T = readT();
+  const fixed = state.colors.map((h, i) => state.locks[i] ? parseHex(h) : null);
+  if (fixed.every(Boolean)) { $('status').textContent = '四個顏色都已鎖定，沒有可搜尋的顏色。'; return; }
+  const btn = $('search');
+  btn.disabled = true;
+  $('status').textContent = '搜尋中…（嚴重度 ' + state.sev.toFixed(2) + '）';
+  setTimeout(() => {
+    const res = search(state.T, fixed, { restarts: 100, iters: 600 });
+    const ok = res.filter(r => r.ev.V === 0);
+    const picked = ok.length ? pickDiverse(ok.sort((a, b) => b.Q - a.Q), 8, 14) : pickDiverse(res, 3, 14);
+    state.cands = picked;
+    renderCandidates();
+    applyColors(picked[0].C.map(toHex));
+    $('status').textContent = ok.length
+      ? '找到 ' + ok.length + ' 組符合全部門檻的結果，列出 ' + picked.length + ' 組，已套用第 1 組。'
+      : '沒有結果通過全部門檻，已套用最接近的一組（仍有 ' + picked[0].ev.fails + ' 項未過）。可放寬門檻、調高嚴重度，或鎖定部分顏色後再搜尋。';
+    btn.disabled = false;
+  }, 30);
+}
+function swapDiagonal() {
+  const c = state.colors, l = state.locks;
+  state.colors = [c[3], c[2], c[1], c[0]];
+  state.locks = [l[3], l[2], l[1], l[0]];
+  writeColorInputs();
+  refresh();
+}
+/* 嚴重度改變：更新矩陣，舊候選是在別的嚴重度下找的，一併清除 */
+function applySeverity(v) {
+  v = Math.min(1, Math.max(0, v));
+  if (v === state.sev) return;
+  state.sev = v;
+  setSeverity(v);
+  if (state.cands.length) {
+    state.cands = [];
+    renderCandidates();
+    $('status').textContent = '嚴重度已改為 ' + v.toFixed(2) + '，舊的候選組合已清除，請重新搜尋。';
+  }
+  refresh();
+}
+
+/* 事件 */
+[0, 1, 2, 3].forEach(i => {
+  $('c' + i + '-pick').addEventListener('input', e => {
+    state.colors[i] = e.target.value.toLowerCase();
+    $('c' + i + '-hex').value = state.colors[i];
+    $('c' + i + '-hex').classList.remove('invalid');
+    refresh();
+  });
+  $('c' + i + '-hex').addEventListener('input', e => {
+    const c = parseHex(e.target.value);
+    e.target.classList.toggle('invalid', !c);
+    if (c) {
+      state.colors[i] = toHex(c);
+      $('c' + i + '-pick').value = state.colors[i];
+      refresh();
+    }
+  });
+  $('c' + i + '-hex').addEventListener('blur', e => {
+    if (parseHex(e.target.value)) e.target.value = state.colors[i];
+    else { e.target.value = state.colors[i]; e.target.classList.remove('invalid'); }
+  });
+  $('c' + i + '-lock').addEventListener('change', e => { state.locks[i] = e.target.checked; });
+});
+Object.keys(DEFAULT_T).forEach(k => {
+  $('t-' + k).addEventListener('input', () => { state.T = readT(); refresh(); });
+});
+$('reset-t').addEventListener('click', () => { state.T = Object.assign({}, DEFAULT_T); writeThresholds(); refresh(); });
+$('search').addEventListener('click', doSearch);
+$('swap').addEventListener('click', swapDiagonal);
+$('cands').addEventListener('click', e => {
+  const b = e.target.closest('.cand');
+  if (b) applyColors(state.cands[+b.dataset.k].C.map(toHex));
+});
+document.querySelectorAll('.seg button').forEach(b => b.addEventListener('click', () => {
+  state.view = b.dataset.view;
+  document.querySelectorAll('.seg button').forEach(x => x.setAttribute('aria-pressed', x === b ? 'true' : 'false'));
+  refresh();
+}));
+
+/* 嚴重度 */
+$('sev').addEventListener('input', e => {
+  $('sev-n').value = e.target.value;
+  applySeverity(parseFloat(e.target.value));
+});
+$('sev-n').addEventListener('input', e => {
+  const v = parseFloat(e.target.value);
+  if (!isFinite(v)) return;
+  $('sev').value = Math.min(1, Math.max(0, v));
+  applySeverity(v);
+});
+$('sev-n').addEventListener('change', e => {
+  const v = parseFloat(e.target.value);
+  e.target.value = isFinite(v) ? Math.min(1, Math.max(0, v)) : state.sev;
+});
+
+/* 疊加圖層 */
+$('ov-on').addEventListener('change', e => { state.ov.on = e.target.checked; refresh(); });
+$('ov-follow').addEventListener('change', e => { state.ov.follow = e.target.checked; refresh(); });
+OV_ROWS.forEach(r => {
+  const k = r[0], max = r[2], rg = $('ov-' + k), nb = $('ov-' + k + '-n');
+  rg.addEventListener('input', () => {
+    state.ov[k] = +rg.value;
+    nb.value = Math.round(state.ov[k]);
+    refresh();
+  });
+  nb.addEventListener('input', () => {
+    const v = parseFloat(nb.value);
+    if (!isFinite(v)) return;
+    state.ov[k] = Math.min(max, Math.max(0, v));
+    rg.value = state.ov[k];
+    refresh();
+  });
+});
+$('ov-L').addEventListener('input', e => { state.ov.L = normL(e.target.value); refresh(); });
+$('ov-L').addEventListener('change', e => { state.ov.L = normL(e.target.value); e.target.value = state.ov.L; refresh(); });
+
+/* 字串 */
+function fontSpecs() {
+  return [1, 2].map(n => { const c = readStr(n); return { spec: c.weight + ' 100px ' + c.font, text: c.text }; });
+}
+function loadFontsThenRender() {
+  refresh();
+  if (!document.fonts || !document.fonts.load) return;
+  Promise.all(fontSpecs().map(s => document.fonts.load(s.spec, s.text || ' ').catch(() => null)))
+    .then(() => { delete maskCache[1]; delete maskCache[2]; refresh(); })
+    .catch(() => {});
+}
+['text', 'font', 'fontcustom', 'usecustom', 'weight', 'size'].forEach(k => [1, 2].forEach(n => {
+  const el = $('s' + n + '-' + k);
+  el.addEventListener('input', loadFontsThenRender);
+  el.addEventListener('change', loadFontsThenRender);
+}));
+[1, 2].forEach(n => $('s' + n + '-usecustom').addEventListener('change', () => syncFontControls(n)));
+
+/* 啟動 */
+writeColorInputs();
+writeThresholds();
+syncFontControls(1);
+syncFontControls(2);
+render();
+renderDiagnostics();
+loadFontsThenRender();
+setTimeout(() => {
+  const res = search(state.T, [null, null, null, null], { restarts: 60, iters: 500 });
+  const ok = res.filter(r => r.ev.V === 0).sort((a, b) => b.Q - a.Q);
+  if (ok.length) { state.cands = pickDiverse(ok, 8, 14); renderCandidates(); }
+}, 400);
+})();
+</script>
+</body>
+</html>
